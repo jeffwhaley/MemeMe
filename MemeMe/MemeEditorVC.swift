@@ -17,6 +17,8 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
     @IBOutlet weak var topText: UITextField!
     @IBOutlet weak var bottomText: UITextField!
     
+    let toolbarHeight: Int = 44 // used to have the image move out of way the correct amount, not sure how to get this programmatically
+    
     let memeTextAttributes = [
         NSStrokeColorAttributeName: UIColor.blackColor(),
         NSForegroundColorAttributeName: UIColor.whiteColor(),
@@ -61,12 +63,14 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
     func shareCompletionHandler (s: String!, ok: Bool, items: [AnyObject]!, err: NSError!) -> Void {
         //TODO: if ok share to list
         //TODO: adjust scope so memedimage isn't recalced???
-        let sharedMeme = Meme(topText: topText.text, bottomText: bottomText.text, rawImage: memeImage.image!, memedImage:generateMemedImage())
-        let object = UIApplication.sharedApplication().delegate
-        let appDelegate = object as! AppDelegate
-        appDelegate.memes.append(sharedMeme)
-        println("complete \(s) \(ok) \(items) \(err)")
-        self.dismissViewControllerAnimated(true, completion: nil)
+        if ok {
+            let sharedMeme = Meme(topText: topText.text, bottomText: bottomText.text, rawImage: memeImage.image!, memedImage:generateMemedImage())
+            let object = UIApplication.sharedApplication().delegate
+            let appDelegate = object as! AppDelegate
+            appDelegate.memes.append(sharedMeme)
+            println("complete \(s) \(ok) \(items) \(err)")
+            self.dismissViewControllerAnimated(true, completion: nil)
+        }
     }
     
     func generateMemedImage() -> UIImage {
@@ -150,13 +154,13 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
     
     func keyboardWillShow(notification: NSNotification) {
         if bottomText.isFirstResponder() {
-            self.view.frame.origin.y -= getKeyboardHeight(notification)
+            self.view.frame.origin.y -= getKeyboardHeight(notification) - CGFloat(toolbarHeight)
         }
     }
 
     func keyboardWillHide(notification: NSNotification) {
         if bottomText.isFirstResponder() {
-            self.view.frame.origin.y += getKeyboardHeight(notification)
+            self.view.frame.origin.y += getKeyboardHeight(notification) - CGFloat(toolbarHeight)
         }
     }
     
