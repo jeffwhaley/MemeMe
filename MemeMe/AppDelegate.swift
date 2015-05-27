@@ -13,6 +13,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     
+    // global location for sent meme history array, gone when app exits
+    
     var memes = [Meme]()
 
 

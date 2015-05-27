@@ -6,43 +6,57 @@
 //  Copyright (c) 2015 Jeff Whaley. All rights reserved.
 //
 
-import Foundation
 import UIKit
 
 class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UITextFieldDelegate {
+// class for meme editor, allows selecting image, adding text and sharing
     
-    
+    // outlets for user interface
     @IBOutlet weak var memeImage: UIImageView!
     @IBOutlet weak var useCameraButton: UIBarButtonItem!
     @IBOutlet weak var topText: UITextField!
     @IBOutlet weak var bottomText: UITextField!
-    
-    let toolbarHeight: Int = 44 // used to have the image move out of way the correct amount, not sure how to get this programmatically
-    
-    let memeTextAttributes = [
-        NSStrokeColorAttributeName: UIColor.blackColor(),
-        NSForegroundColorAttributeName: UIColor.whiteColor(),
-        NSFontAttributeName: UIFont(name: "HelveticaNeue-CondensedBlack", size: 40)!,
-        NSStrokeWidthAttributeName: -2,
-    ]
+    @IBOutlet weak var shareButton: UIBarButtonItem!
+    @IBOutlet weak var toolBar: UIToolbar!
+    @IBOutlet weak var navBar: UINavigationBar!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // setup text appearance attributes
+        let memeTextAttributes = [
+            NSStrokeColorAttributeName: UIColor.blackColor(),
+            NSForegroundColorAttributeName: UIColor.whiteColor(),
+            NSFontAttributeName: UIFont(name: "HelveticaNeue-CondensedBlack", size: 40)!,
+            NSStrokeWidthAttributeName: -2
+        ]
+
         topText.defaultTextAttributes = memeTextAttributes
         bottomText.defaultTextAttributes = memeTextAttributes
+        
         topText.textAlignment = .Center
         bottomText.textAlignment = .Center
+
+        // setup text to enable delegates
         topText.delegate = self
         bottomText.delegate = self
+        
+        // set initial state for UI
+        
         topText.hidden = true
         bottomText.hidden = true
+        
         topText.text = "TOP"
         bottomText.text = "BOTTOM"
+        
         topText.clearsOnBeginEditing = true
         bottomText.clearsOnBeginEditing = true
         
+        
+        shareButton.enabled = false
     }
     
+    // subscribe/unsubscribe to keyboard notifications
     override func viewWillAppear(animated: Bool) {
         useCameraButton.enabled = UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.Camera)
         self.subscribeToKeyboardNotifications()
@@ -53,6 +67,7 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
         self.unsubscribeFromKeyboardNotifications()
     }
     
+    // functions to handle sharing
     @IBAction func shareMeme(sender: UIBarButtonItem) {
         let objectsToShare = ["Share my meme", generateMemedImage()]
         var shareVC = UIActivityViewController(activityItems: objectsToShare, applicationActivities: nil)
@@ -61,35 +76,38 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
     }
     
     func shareCompletionHandler (s: String!, ok: Bool, items: [AnyObject]!, err: NSError!) -> Void {
-        //TODO: if ok share to list
-        //TODO: adjust scope so memedimage isn't recalced???
         if ok {
             let sharedMeme = Meme(topText: topText.text, bottomText: bottomText.text, rawImage: memeImage.image!, memedImage:generateMemedImage())
             let object = UIApplication.sharedApplication().delegate
+            
             let appDelegate = object as! AppDelegate
             appDelegate.memes.append(sharedMeme)
-            println("complete \(s) \(ok) \(items) \(err)")
+            
+            // println("complete \(s) \(ok) \(items) \(err)")
             self.dismissViewControllerAnimated(true, completion: nil)
         }
     }
     
     func generateMemedImage() -> UIImage {
-        //TODO: hide toolbar and navbar
-        self.navigationController?.navigationBarHidden = true
-        self.navigationController?.toolbarHidden = true
+    // use image context to save image with text, hide bars so they are not included
+        navBar.hidden = true
+        toolBar.hidden = true
+
         UIGraphicsBeginImageContext(self.view.frame.size)
         self.view.drawViewHierarchyInRect(self.view.frame, afterScreenUpdates: true)
         let memedImage: UIImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        //TODO: restore toolbar and navbar
-        self.navigationController?.navigationBarHidden = false
-        self.navigationController?.toolbarHidden = false
+        
+        navBar.hidden = false
+        toolBar.hidden = false
         return memedImage
     }
     
     @IBAction func cancelMemeEditor(sender: UIBarButtonItem) {
         self.dismissViewControllerAnimated(true, completion: nil)
     }
+    
+    // functions to select and show image with camera or album with text field overlays
     
     @IBAction func useCamera(sender: UIBarButtonItem) {
         let pickerController = UIImagePickerController()
@@ -108,18 +126,24 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
     
     func imagePickerController(pickerController: UIImagePickerController, didFinishPickingMediaWithInfo info: [NSObject : AnyObject]) {
         dismissViewControllerAnimated(true, completion: nil)
+    // executes after image picker completes, either camera or album
+
+        shareButton.enabled = true
+        self.navigationController?.navigationBarHidden = true
+
         if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
             self.memeImage.image = image
             topText.hidden = false
             bottomText.hidden = false
         }
     }
-    
+        
     func imagePickerControllerDidCancel(picker: UIImagePickerController) {
         dismissViewControllerAnimated(true, completion: nil)
+        self.navigationController?.navigationBarHidden = false
     }
     
-    // Function to dismiss keyboard
+    // Functions to dismiss keyboard either with return or touching outside keyboard
     override func touchesBegan(touches: Set<NSObject>, withEvent event: UIEvent) {
         view.endEditing(true)
         super.touchesBegan(touches, withEvent: event)
@@ -152,6 +176,8 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
         NSNotificationCenter.defaultCenter().removeObserver(self, name: UIKeyboardWillHideNotification, object: nil)
     }
     
+    let toolbarHeight: Int = 44 // used to have the image move out of way the correct amount
+
     func keyboardWillShow(notification: NSNotification) {
         if bottomText.isFirstResponder() {
             self.view.frame.origin.y -= getKeyboardHeight(notification) - CGFloat(toolbarHeight)
@@ -169,6 +195,29 @@ class MemeEditorVC: UIViewController, UIImagePickerControllerDelegate, UINavigat
         let keyboardSize = userInfo![UIKeyboardFrameEndUserInfoKey] as! NSValue // of CGRect
         return keyboardSize.CGRectValue().height
     }
+
+// Start for a future enhancement to put the text in the proper place for aspect fit image
+// I wasn't able to figure out how to 
+//     let imageFrame = frameForImage(image, imageView: memeImage)
+//     let topTextFrame = CGRectMake(imageFrame.origin.x, imageFrame.origin.y, imageFrame.width, topText.frame.height)
+//     topText.frame = topTextFrame
+
+    
+//    func frameForImage(image: UIImage, imageView: UIImageView) -> CGRect {
+//        let imageRatio = image.size.width / image.size.height
+//        let viewRatio = imageView.frame.size.width / imageView.frame.size.height
+//        if imageRatio < viewRatio {
+//            let scale = imageView.frame.size.height / image.size.height
+//            let width = scale * image.size.width
+//            let topLeftX = (imageView.frame.size.width - width) * 0.5
+//            return CGRectMake(topLeftX, 0, width, imageView.frame.size.height)
+//        } else {
+//            let scale = imageView.frame.size.width / image.size.width
+//            let height = scale * image.size.height
+//            let topLeftY = (imageView.frame.size.height - height) * 0.5
+//            return CGRectMake(0, topLeftY, imageView.frame.size.width, height)
+//        }
+//    }
 }
 
 
